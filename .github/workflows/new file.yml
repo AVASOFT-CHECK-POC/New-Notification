@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify of Failure
-      - uses: toko-bifrost/ms-teams-deploy-card@master
+        uses: toko-bifrost/ms-teams-deploy-card@master
         with:
           github-token: ${{ github.token }}
           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
