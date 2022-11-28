@@ -101,6 +101,28 @@ jobs:
         run: docker-compose -f docker-compose.test.yml run --rm app ./bin/wait-for-it db:3306 -- ./bin/phinx seed:run
       - name: Run integration tests
         run: docker-compose -f docker-compose.test.yml run -e XDEBUG_MODE=off --rm app ./vendor/bin/phpunit --testsuite Integration --no-coverage
+      - name: Team Notify of Success
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+        with:
+          github-token: ${{ github.token }}
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
+          #github-token: ${{ github.token }}
+          #ms-teams-webhook-uri: ${{ secrets.MS_DEVOPS_TEAMS_WEBHOOK_URI }}
+          #notification-summary: "BTMS deployment to ${{ inputs.app_env }} (${{ github.actor }}): Test success"
+          #notification-color: 33ff66
+      - name: Team Notify of Failure
+        if: ${{ failure() }}
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+        with:
+          github-token: ${{ github.token }}
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
+          #github-token: ${{ github.token }}
+          #ms-teams-webhook-uri: ${{ secrets.MS_DEVOPS_TEAMS_WEBHOOK_URI }}
+          #notification-summary: "BTMS deployment to ${{ inputs.app_env }} (${{ github.actor }}): Test failed:"
+          #notification-color: ff0000
+    
 
 #   notify-team-start:
 #     if: ${{ github.event_name != 'pull_request' }}
@@ -113,26 +135,26 @@ jobs:
 #           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
 #           timezone: US/Eastern
 
-  notify-team-success:
-    if: ${{ github.event_name != 'pull_request' }}
-    needs: [static-analysis, test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Team Notify of Success
-        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
-        with:
-          github-token: ${{ github.token }}
-          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          timezone: US/Eastern
+#   notify-team-success:
+#     if: ${{ github.event_name != 'pull_request' }}
+#     needs: [static-analysis, test]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Team Notify of Success
+#         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+#         with:
+#           github-token: ${{ github.token }}
+#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+#           timezone: US/Eastern
 
-  notify-team-failure:
-    if: ${{ failure() && github.event_name != 'pull_request' }}
-    needs: [static-analysis, test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Team Notify of Failure
-        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
-        with:
-          github-token: ${{ github.token }}
-          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          timezone: US/Eastern
+#   notify-team-failure:
+#     if: ${{ failure() && github.event_name != 'pull_request' }}
+#     needs: [static-analysis, test]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Team Notify of Failure
+#         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+#         with:
+#           github-token: ${{ github.token }}
+#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+#           timezone: US/Eastern
