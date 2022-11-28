@@ -190,24 +190,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify Start
-        uses: jdcargile/ms-teams-notification@v1.3
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          notification-summary: "BTMS Deploy ${{ inputs.app_env }} App EC2 ${{ inputs.ref }} Start"
-          notification-color: 28a745
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
 
   notify-team-success:
     needs: [deploy]
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify of Success
-        uses: jdcargile/ms-teams-notification@v1.3
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          notification-summary: "BTMS Deploy ${{ inputs.app_env }} App EC2 ${{ inputs.ref }} Success"
-          notification-color: 33ff66
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
 
   notify-team-failure:
     if: failure()
@@ -215,9 +213,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify of Failure
-        uses: jdcargile/ms-teams-notification@v1.3
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          notification-summary: "BTMS Deploy ${{ inputs.app_env }} App EC2 ${{ inputs.ref }} Failure"
-          notification-color: ff0000
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
