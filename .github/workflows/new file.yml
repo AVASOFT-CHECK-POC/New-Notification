@@ -92,28 +92,28 @@ jobs:
           cache-to: type=inline
           build-args: |
             BRANCH=${{ env.IMAGE_TAG }}
+
   notify-team-start:
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify Start
-        uses: jdcargile/ms-teams-notification@v1.3
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          notification-summary:  "BTMS `${{ inputs.ref }}` build (${{ github.actor }}): Started..."
-          notification-color: 28a745
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
 
   notify-team-success:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify of Success
-        uses: jdcargile/ms-teams-notification@v1.3
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          notification-summary: "BTMS `${{ inputs.ref }}` build (${{ github.actor }}) completed successfully. Image was pushed to ECR and is available to be deployed. :white_check_mark:"
-          notification-color: 33ff66
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
+
 
   notify-team-failure:
     if: failure()
@@ -121,9 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify of Failure
-        uses: jdcargile/ms-teams-notification@v1.3
+        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          notification-summary: "BTMS `${{ inputs.ref }}` build (${{ github.actor }}): Failure :o:"
-          notification-color: ff0000
+          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          timezone: US/Eastern
