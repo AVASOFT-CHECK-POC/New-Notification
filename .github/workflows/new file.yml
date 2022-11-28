@@ -64,9 +64,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Team Notify of Failure
-        uses: toko-bifrost/ms-teams-deploy-card@master
+      - uses: toko-bifrost/ms-teams-deploy-card@master
         with:
           github-token: ${{ github.token }}
           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          timezone: US/Eastern
+          custom-facts: |
+            - name: Custom Fact Name 1
+              value: Custom Fact Value 1
+            - name: Pull Request
+              value: "http://example.com/${{ github.run_id }}"
+          custom-actions: |
+            - text: View PR
+              url: "http://valid.uri.com"
+            - text: View CI
+              url: "http://example.com/${{ github.run_id }}"
+#         uses: toko-bifrost/ms-teams-deploy-card@master
+#         with:
+#           github-token: ${{ github.token }}
+#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+#           timezone: US/Eastern
 
