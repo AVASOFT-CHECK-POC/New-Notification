@@ -102,16 +102,16 @@ jobs:
       - name: Run integration tests
         run: docker-compose -f docker-compose.test.yml run -e XDEBUG_MODE=off --rm app ./vendor/bin/phpunit --testsuite Integration --no-coverage
 
-  notify-team-start:
-    if: ${{ github.event_name != 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Team Notify Start
-        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
-        with:
-          github-token: ${{ github.token }}
-          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          timezone: US/Eastern
+#   notify-team-start:
+#     if: ${{ github.event_name != 'pull_request' }}
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Team Notify Start
+#         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+#         with:
+#           github-token: ${{ github.token }}
+#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+#           timezone: US/Eastern
 
   notify-team-success:
     if: ${{ github.event_name != 'pull_request' }}
@@ -130,7 +130,7 @@ jobs:
     needs: [static-analysis, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+#      - uses: actions/checkout@v2
       - name: Team Notify of Failure
         if: ${{ failure() }}
         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
