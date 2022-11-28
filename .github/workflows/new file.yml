@@ -206,6 +206,8 @@ jobs:
           github-token: ${{ github.token }}
           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
           timezone: US/Eastern
+          notification-summary: "BTMS Deploy ${{ inputs.app_env }} App EC2 ${{ inputs.ref }} Success"
+          notification-color: 33ff66
 
   notify-team-failure:
     if: failure()
@@ -218,3 +220,5 @@ jobs:
           github-token: ${{ github.token }}
           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
           timezone: US/Eastern
+          notification-summary: "BTMS Deploy ${{ inputs.app_env }} App EC2 ${{ inputs.ref }} Failure"
+          notification-color: ff0000
