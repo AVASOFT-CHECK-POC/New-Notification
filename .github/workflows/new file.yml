@@ -1,7 +1,11 @@
-name: BTMS Test
+name: BTMS Build
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -9,152 +13,117 @@ on:
         required: true
       MS_TEAMS_WEBHOOK_URI:
         required: true
-  pull_request:
-    paths:
-      - '.github/workflows/btms-test.yml'
-      - 'btms/**'
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Git ref'
+        description: "Git ref (branch, tag, sha) to build"
         required: true
-        default: 'develop'
+        type: string
 
 jobs:
-  static-analysis:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 7.4
-          coverage: none
-          tools: composer, cs2pr, parallel-lint
-      - name: Lint PHP code
-        run:  parallel-lint --exclude ./btms/php/src/vendor --checkstyle ./btms/php/src | cs2pr
-      - name: Detect coding standard violations
-        run: |
-          URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"
-          FILES_CHANGED=$(curl -s -X GET -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" $URL | jq -r 'map(select(.status == "added" or .status == "modified")) | .[] | select(.filename|test("btms/")) | .filename' | xargs)
-          echo "BTMS files added or modified: "
-          echo $FILES_CHANGED
-          if [ ${#FILES_CHANGED} -le "0" ]
-          then
-              echo "No added/modified files to check"
-              exit 0
-          fi
-          ./btms/php/src/bin/phpcs --config-set ignore_errors_on_exit 1
-          ./btms/php/src/bin/phpcs --config-set ignore_warnings_on_exit 1
-          ./btms/php/src/bin/phpcs \
-            -v \
-            --standard=btms/php/src/phpcs.xml.dist \
-            --basepath=. \
-            --report-full \
-            --report-checkstyle=./phpcs-report.xml \
-            $FILES_CHANGED
-          cs2pr --graceful-warnings ./phpcs-report.xml
-  test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./btms/php
     env:
-      SERVER_ENV: test
+      GIT_REF: ${{ inputs.ref }}
+      IMAGE_TAG: ${{ inputs.ref }}
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - name: Merge target branch
-        run: |
-          git config --global user.email "${GITHUB_ACTOR}"
-          git config --global user.name "${GITHUB_ACTOR}@users.noreply.github.com"
-          git checkout $GITHUB_BASE_REF
-          git checkout $GITHUB_HEAD_REF
-          git merge $GITHUB_BASE_REF --no-edit
-          git status
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: 7.4
-          coverage: none
-      - name: Run unit tests
-        run: ./src/bin/phpunit --verbose --testsuite Unit --no-coverage -c ./src/phpunit.xml.dist
+          ref: ${{ inputs.ref }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - name: Copy test environment config from S3
-        working-directory: ./
-        run: aws s3 cp s3://sunteck-mono/etc/btms.test.env ./build/etc/
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Setup test database
-        run: docker-compose -f docker-compose.test.yml up -d db
-      - name: Run migrations
-        run: docker-compose -f docker-compose.test.yml run --rm app ./bin/wait-for-it --timeout=60 db:3306 -- ./bin/phinx migrate
-      - name: Seed test database
-        run: docker-compose -f docker-compose.test.yml run --rm app ./bin/wait-for-it db:3306 -- ./bin/phinx seed:run
-      - name: Run integration tests
-        run: docker-compose -f docker-compose.test.yml run -e XDEBUG_MODE=off --rm app ./vendor/bin/phpunit --testsuite Integration --no-coverage
+
+      - name: Build and push apache image
+        uses: docker/build-push-action@v2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: sunteck/btms-apache
+        with:
+          context: btms/apache/
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push php image
+        uses: docker/build-push-action@v2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: sunteck/btms-php
+        with:
+          context: btms/php/
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push rails image
+        uses: docker/build-push-action@v2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: sunteck/btms-rails
+        with:
+          context: btms/rails/
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-to: type=inline
+
+      - name: Build and push cron image
+        uses: docker/build-push-action@v2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: sunteck/btms-cron
+        with:
+          context: btms/provision/
+          file: ./btms/provision/Dockerfile.cron
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-to: type=inline
+          build-args: |
+            BRANCH=${{ env.IMAGE_TAG }}
+  notify-team-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Team Notify Start
+        uses: jdcargile/ms-teams-notification@v1.3
+        with:
+          github-token: ${{ github.token }}
+          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          notification-summary:  "BTMS `${{ inputs.ref }}` build (${{ github.actor }}): Started..."
+          notification-color: 28a745
+
+  notify-team-success:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
       - name: Team Notify of Success
-        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+        uses: jdcargile/ms-teams-notification@v1.3
         with:
           github-token: ${{ github.token }}
-          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          timezone: US/Eastern
-          #github-token: ${{ github.token }}
-          #ms-teams-webhook-uri: ${{ secrets.MS_DEVOPS_TEAMS_WEBHOOK_URI }}
-          #notification-summary: "BTMS deployment to ${{ inputs.app_env }} (${{ github.actor }}): Test success"
-          #notification-color: 33ff66
+          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          notification-summary: "BTMS `${{ inputs.ref }}` build (${{ github.actor }}) completed successfully. Image was pushed to ECR and is available to be deployed. :white_check_mark:"
+          notification-color: 33ff66
+
+  notify-team-failure:
+    if: failure()
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
       - name: Team Notify of Failure
-        if: ${{ failure() }}
-        uses: toko-bifrost/ms-teams-deploy-card@3.1.2
+        uses: jdcargile/ms-teams-notification@v1.3
         with:
           github-token: ${{ github.token }}
-          webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-          timezone: US/Eastern
-          #github-token: ${{ github.token }}
-          #ms-teams-webhook-uri: ${{ secrets.MS_DEVOPS_TEAMS_WEBHOOK_URI }}
-          #notification-summary: "BTMS deployment to ${{ inputs.app_env }} (${{ github.actor }}): Test failed:"
-          #notification-color: ff0000
-    
-
-#   notify-team-start:
-#     if: ${{ github.event_name != 'pull_request' }}
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Team Notify Start
-#         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
-#         with:
-#           github-token: ${{ github.token }}
-#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-#           timezone: US/Eastern
-
-#   notify-team-success:
-#     if: ${{ github.event_name != 'pull_request' }}
-#     needs: [static-analysis, test]
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Team Notify of Success
-#         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
-#         with:
-#           github-token: ${{ github.token }}
-#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-#           timezone: US/Eastern
-
-#   notify-team-failure:
-#     if: ${{ failure() && github.event_name != 'pull_request' }}
-#     needs: [static-analysis, test]
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Team Notify of Failure
-#         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
-#         with:
-#           github-token: ${{ github.token }}
-#           webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
-#           timezone: US/Eastern
+          ms-teams-webhook-uri: ${{ secrets.MS_TEAMS_WEBHOOK_URI }}
+          notification-summary: "BTMS `${{ inputs.ref }}` build (${{ github.actor }}): Failure :o:"
+          notification-color: ff0000
