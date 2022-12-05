@@ -99,7 +99,7 @@ jobs:
 #         uses: jdcargile/ms-teams-notification@v1.3
 #         with:
 #           github-token: ${{ github.token }}
-#           ms-teams-webhook-uri: ${{ secrets.webhook-uri }}
+#           webhook-uri: ${{ secrets.MSTEAMS_WEBHOOK }}
 #           notification-summary:  "BTMS `${{ inputs.ref }}` build (${{ github.actor }}): Started..."
 #           notification-color: 28a745
 
@@ -111,7 +111,7 @@ jobs:
         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.webhook-uri }}
+          webhook-uri: ${{ secrets.MSTEAMS_WEBHOOK }}
 #           notification-summary: "BTMS `${{ inputs.ref }}` build (${{ github.actor }}) completed successfully. Image was pushed to ECR and is available to be deployed. :white_check_mark:"
 #           notification-color: 33ff66
 
@@ -124,6 +124,6 @@ jobs:
         uses: toko-bifrost/ms-teams-deploy-card@3.1.2
         with:
           github-token: ${{ github.token }}
-          ms-teams-webhook-uri: ${{ secrets.webhook-uri }}
+          webhook-uri: ${{ secrets.MSTEAMS_WEBHOOK }}
 #           notification-summary: "BTMS `${{ inputs.ref }}` build (${{ github.actor }}): Failure :o:"
 #           notification-color: ff0000
